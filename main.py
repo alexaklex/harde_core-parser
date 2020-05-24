@@ -4,8 +4,6 @@ import csv
 import re
 import config
 
-
-
 class AvitoParser:
 
     count = 0
@@ -16,42 +14,14 @@ class AvitoParser:
             'User-Agent': 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.0; Trident/5.0; chromeframe/11.0.696.57)',
             'Accept-Language': 'ru' ,
         }
-
-        data = {'category': 'category', 'podcategory': 'podcategory', 'sku': 'sku', 'post_title': 'post_title',  'post_content': 'post_content', 'lenght': 'lenght', 'width':'width',
-            'regular_price': 'regular_price', 'post_status': 'publish', 'post_title': 'post_title', 'post_content': 'post_content',
-            'featured_image': 'featured_image', 'product_gallery': 'product_gallery',
-        }
-        with open('alex.csv', 'a', encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow((data['category'], data['podcategory'], data['sku'], data['post_title'], data['post_content'], data['lenght'], data['width'],data['regular_price'],
-                             data['post_status'], data['post_content'], data['featured_image'], data['product_gallery']
-            ))
+        #Создаем начальный заголовок
+        self.get_title_csv()
 
     def get_html(self, url, useragent=None, proxy=None):
         r = self.session.get(url, headers=useragent, proxies=proxy)
+        # r = self.session.get(url)
         # print(r.text)
         return r.text
-
-    #Записывает данные в файл csv
-    def write_csv(self, data):
-        with open('alex.csv', 'a', encoding="utf-8") as f:
-            writer = csv.writer(f)
-
-            writer.writerow((
-                data['category'],
-                data['podcategory'],
-                data['sku'],
-                data['post_title'],
-                data['post_content'],
-                data['lenght'],
-                data['width'],
-                data['regular_price'],
-                data['post_status'],
-                data['post_content2'],
-                data['featured_image'],
-                data['product_gallery']
-
-            ))
 
     #получаем данные из страницы
     def soup_function(self, url, tag=None):
@@ -87,7 +57,7 @@ class AvitoParser:
                             descr_size = block.select('div.woocommerce-product-details__short-description p')[0].string.strip()
                             ul = block.select('li')
 
-                            if descr_size == 'Размеры шпильки:':
+                            if descr_size == 'Размеры шпильки:' or descr_size == 'Размеры:':
                                 # data.append(descr_size)
                                 lenght_full = block.select('li')[0].string.strip()
                                 lenght = re.findall(r'\d+', lenght_full)[0]
@@ -107,8 +77,6 @@ class AvitoParser:
 
                             descr = block.select('div.woocommerce-product-details__short-description p')[1].text.strip()
                             # print(descr_main)
-
-
                         else:
                             descr_main = ''
                             lenght = ''
@@ -125,43 +93,50 @@ class AvitoParser:
                         print(featured_image)
                     except:
                         featured_image = ''
-
                     try:
                         gallery = []
                         img_gallery_massiv = block.select('div.woocommerce-product-gallery__image')
 
-                        for i in img_gallery_massiv:
-                            if img_gallery_massiv[0] == i:
-                                continue
-                            p_gallery = i.get('data-thumb')
-                            gallery.append(p_gallery)
-                            product_gallery = '|'.join(gallery)
-                            print(product_gallery)
-                    except:
-                        img = ''
-                    try:
-                        price_text = block.select('span.woocommerce-Price-amount.amount')[0].string.strip()
-                        price = re.findall(r'\d+', price_text)[0]
-                        print(price)
-                    except:
-                        price = block.select('div.wl-price-complect__price span')[0].string.strip()
-                        if price:
-                            print(price)
+                        if len(img_gallery_massiv) > 1:
+                            for i in img_gallery_massiv:
+                                if img_gallery_massiv[0] == i:
+                                    continue
+                                p_gallery = i.get('data-thumb')
+                                gallery.append(p_gallery)
+                                product_gallery = '|'.join(gallery)
+                                print(product_gallery)
                         else:
-                            price = ''
-                            print("Not")
+                            product_gallery = ''
+                    except:
+                        product_gallery = ''
+                    try:
+                        if block.select('span.woocommerce-Price-amount.amount')[0].string.strip():
+                            price_text = block.select('span.woocommerce-Price-amount.amount')[0].string.strip()
+                            price = re.findall(r'\d+', price_text)[0]
+                            print(price)
+                        elif block.select('div.wl-price-complect__price span')[0].string.strip():
+                            price = block.select('div.wl-price-complect__price span')[0].string.strip()
+                            print(price)
+
+                    except:
+                        price = ''
+
                     self.count = self.count + 1
                     print("_______________________")
+                    #Делаем проверку если у нас есть подкатегории
+                    if podcategory != '':
+                        cat = category + '>' + podcategory
+                    else:
+                        cat = category
 
                     data_csv = {
-                        'category': category,
-                        'podcategory': podcategory,
+                        'category': cat,
                         'sku': self.count,
                         'post_title': title,
                         'post_content': descr,
                         'regular_price': price,
                         'post_status': 'publish',
-                        'post_content2': descr_main,
+                        # 'post_content2': descr_main,
                         'lenght': lenght,
                         'width': width,
                         'featured_image': featured_image,
@@ -178,14 +153,11 @@ class AvitoParser:
         # for item in container:
         #     link = self.parse_block(item)
             # return
-
         for i in range(1,2):
             link = self.parse_block(container[i])
 
 
     def parse_block(self, item):
-
-
         #Вытаскиваем заголовок главной категории
         try:
             title_block= item.select_one('h2.woocommerce-loop-category__title')
@@ -216,23 +188,37 @@ class AvitoParser:
                 #Если у нас есть подкатегории
                 else:
                     podcategory = self.soup_function(url, 'li.product-category.product a')
-                    # [print(x) for x in podcategory]
-                    for p in podcategory:
+                    # для теста, вы таскиваем определенную подкатегорию
+                    #_________________________________________________________________________________________
+                    lenght = len(podcategory)
+
+                    for i in range(3,4):
+                        p = podcategory[i]
                         link_podcat = p.get('href')
                         try:
                             self.title_podcat = p.select('h2.woocommerce-loop-category__title')[0].string.strip()
                             print(self.title_podcat)
                         except:
                             self.title_podcat = ''
+                    #____________________________________________________________________________________________
+
+                    # [print(x) for x in podcategory]
+
+                    #Основная
+                    # for p in podcategory:
+                    #     link_podcat = p.get('href')
+                    #     try:
+                    #         self.title_podcat = p.select('h2.woocommerce-loop-category__title')[0].string.strip()
+                    #         print(self.title_podcat)
+                    #     except:
+                    #         self.title_podcat = ''
 
                         # Проверяем если в подкатегории навигация
                         navigation = self.soup_function(link_podcat, 'nav.woocommerce-pagination')
-
-                        #Получаем количество страниц подкатегории
-                        total_page = self.total_page(navigation)
-
-
                         if navigation:
+                            # Получаем количество страниц подкатегории
+                            total_page = self.total_page(navigation)
+                            print(total_page)
                             # count = 0
                             for i in range(1,int(total_page)):
                                 print(i, "Страница")
@@ -242,19 +228,66 @@ class AvitoParser:
                                 if cartchki_link:
                                     self.product_info(cartchki_link, title_category, self.title_podcat)
                                 # count = count + 1
-
                         else:
                             #Если навигации нет
                             cartchki_link = self.soup_function(link_podcat, 'li.product.type-product.status-publish a')
                             if cartchki_link:
                                 self.product_info(cartchki_link, title_category, self.title_podcat)
-
             else:
                 url = None
 
+    #Записывает данные в файл csv
+    def write_csv(self, data):
+        with open('alex.csv', 'a', encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow((
+                data['category'],
+                data['sku'],
+                data['post_title'],
+                data['post_content'],
+                data['lenght'],
+                data['width'],
+                data['regular_price'],
+                data['post_status'],
+                data['featured_image'],
+                data['product_gallery']
+            ))
 
+    # Функция начального создание title
+    def get_title_csv(self):
+            data = {
+                    'category': 'category',
+                    'podcategory': 'podcategory',
+                    'sku': 'sku',
+                    'post_title': 'post_title',
+                    'post_content': 'post_content',
+                    'lenght': 'lenght',
+                    'width': 'width',
+                    'regular_price': 'regular_price',
+                    'post_status': 'post_status',
+                    'featured_image': 'featured_image',
+                    'product_gallery': 'product_gallery',
+
+                    }
+
+            with open('alex.csv', 'a', encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(
+                    (
+                    data['category'],
+                    data['sku'],
+                    data['post_title'],
+                    data['post_content'],
+                    data['lenght'],
+                    data['width'],
+                    data['regular_price'],
+                    data['post_status'],
+                    data['featured_image'],
+                    data['product_gallery'])
+                )
 
     def get_blocks(self):
+        #Название сайта который парсим, подключаем с помощь вспомогательного файла конфиг
         url = config.site
         container = self.soup_function(url, 'li.product-category.product')
         self.link_iteration(container)
