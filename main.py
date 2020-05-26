@@ -32,15 +32,32 @@ class AvitoParser:
         container = soup.select(tag)
         return container
 
+    #Удаляем дубли ссылок карточек, которые подтягиваются из доп. атрибута img
+    def del_dubl(self, cartchki):
+        x = []
+        [x.append(item.get('href')) for item in cartchki]
+
+        r = [x[0]]
+        i = 1
+        j = 0
+        while i < len(x):
+            if r[j] != x[i]:
+                r.append(x[i])
+                j += 1
+            i += 1
+
+        return r
 
     #Вытаскиваеи данные из карточки товара(Title, price и прочее)
     #Проходим по полученным ссылкам на карточку и вытаскиваем значение
     def product_info(self, cartchki, category, podcategory):
 
+        #Удаляем дубли
+        cartchki = self.del_dubl(cartchki)
+
         for item in cartchki:
             print(self.count)
-            link = item.get('href')
-            block = self.soup_function(link, 'div.product.type-product.status-publish')[0]
+            block = self.soup_function(item, 'div.product.type-product.status-publish')[0]
 
             if block:
                     try:
@@ -192,7 +209,7 @@ class AvitoParser:
                     #_________________________________________________________________________________________
                     lenght = len(podcategory)
 
-                    for i in range(3,4):
+                    for i in range(lenght):
                         p = podcategory[i]
                         link_podcat = p.get('href')
                         try:
@@ -220,7 +237,7 @@ class AvitoParser:
                             total_page = self.total_page(navigation)
                             print(total_page)
                             # count = 0
-                            for i in range(1,int(total_page)):
+                            for i in range(int(total_page)):
                                 print(i, "Страница")
                                 #Получаем ссылки карточек из подкатегории
                                 cartchki_link = self.soup_function(link_podcat +'page/' + str(i), 'li.product.type-product.status-publish a')
