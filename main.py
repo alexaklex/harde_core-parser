@@ -17,6 +17,7 @@ class AvitoParser:
         #Создаем начальный заголовок
         self.get_title_csv()
 
+
     def get_html(self, url, useragent=None, proxy=None):
         r = self.session.get(url, headers=useragent, proxies=proxy)
         # r = self.session.get(url)
@@ -45,7 +46,6 @@ class AvitoParser:
                 r.append(x[i])
                 j += 1
             i += 1
-
         return r
 
     #Вытаскиваеи данные из карточки товара(Title, price и прочее)
@@ -57,21 +57,27 @@ class AvitoParser:
 
         for item in cartchki:
             print(self.count)
-            block = self.soup_function(item, 'div.product.type-product.status-publish')[0]
+            try:
+                block = self.soup_function(item, 'div.product.type-product.status-publish')[0]
+            except:
+                block = ''
 
-            if block:
+            if block != '':
                     try:
                         title = block.select('h1.product_title.entry-title')[0].string.strip()
                         print(title)
                     except:
                         title = ''
-
                     try:
-
                         #Если в карточке в дескрипшоне есть список
                         if block.select('div ul'):
                             data = []
-                            descr_size = block.select('div.woocommerce-product-details__short-description p')[0].string.strip()
+                            descr_main = ''
+                            try:
+                                descr_size = block.select('div.woocommerce-product-details__short-description p')[0].string.strip()
+                            except:
+                                descr_size = ''
+
                             ul = block.select('li')
 
                             if descr_size == 'Размеры шпильки:' or descr_size == 'Размеры:':
@@ -83,23 +89,34 @@ class AvitoParser:
                                 descr_main = ''
 
                             elif len(ul) < 2 or len(ul) > 2:
-                                for r in range(len(ul)):
+                                for r in range(2):
                                     u = ul[r].text.strip()
                                     data.append(u)
+                                    lenght = ''
+                                    width = ''
                                 # С помощью джойн мы взяли массив и превратили его в строку, после каждого элемента идет перенос каретки
                                 descr_main = '\n'.join(data)
 
                             else:
                                 print("в дескрипшине ничего")
 
-                            descr = block.select('div.woocommerce-product-details__short-description p')[1].text.strip()
+                            descr2 = block.select('div.woocommerce-product-details__short-description p')[1].text.strip()
+                            #Если в дескрипшен есть еще что-то то мы добавим с новой строки это дерьмо !!!
+                            if descr_main !='':
+                                descr = descr2 + '\n' + descr_main
                             # print(descr_main)
+                            else:
+                                descr = block.select('div.woocommerce-product-details__short-description p')[1].text.strip()
                         else:
-                            descr_main = ''
                             lenght = ''
                             width = ''
-                            descr = block.select('div.woocommerce-product-details__short-description p')[0].string.strip()
-                            print(descr)
+                            #Добавили проверку, для того чтобы обрабатывать блоки дескрипшена с внутр. тегами
+                            try:
+                                descr = block.select('div.woocommerce-product-details__short-description p')[0].string.strip()
+                                print("string: ", descr)
+                            except:
+                                descr = block.select('div.woocommerce-product-details__short-description p')[0].text.strip()
+                                print("text: ", descr)
                     except:
                          descr = ''
                          print("jopa")
@@ -160,6 +177,9 @@ class AvitoParser:
                         'product_gallery': product_gallery,
                     }
                     self.write_csv(data_csv)
+            else:
+                print("НЕт содержимого")
+
 
     def total_page(self, nav):
         return  nav[0].select('a.page-numbers')[-2].string.strip()
@@ -170,7 +190,7 @@ class AvitoParser:
         # for item in container:
         #     link = self.parse_block(item)
             # return
-        for i in range(1,2):
+        for i in range(4,5):
             link = self.parse_block(container[i])
 
 
@@ -183,7 +203,7 @@ class AvitoParser:
             title_category = ''
 
 
-        #Вытаскиваем ссылку
+        #Вытаскиваем ссылку одной категории например "Шпилька"
         url_block = item.select_one('a')
 
         if url_block:
@@ -194,13 +214,31 @@ class AvitoParser:
                 # print(url)
                 #делаем переход в подкатегорию
                 # block = self.get_html(url)
-                #Ссылки на подкатегории
+                #Ссылки на карточки
                 cartchki_link = self.soup_function(url, 'li.product.type-product.status-publish a')
+
 
                 # Если сразу появляются карточки товаров из основной категории
                 if cartchki_link:
-                    title_podcat = 'нет'
-                    self.product_info(cartchki_link, title_category, title_podcat)
+                    title_podcat = ''
+                    # Проверяем если в подкатегории навигация
+                    navigation = self.soup_function(url, 'nav.woocommerce-pagination')
+                    if navigation:
+                        # Получаем количество страниц подкатегории
+                        total_page = self.total_page(navigation)
+                        print(total_page)
+                        # count = 0
+                        for i in range(0, int(total_page) + 1):
+                            print(i, "Страница")
+                            # Получаем все ссылки карточек из главной категории
+                            cartchki_link = self.soup_function(url + 'page/' + str(i), 'li.product.type-product.status-publish a')
+
+                            product_info = self.product_info(cartchki_link, title_category, title_podcat)
+                            if product_info == 0:
+                                print("Пустая страница")
+                    else:
+                        cartchki_link = self.soup_function(url, 'li.product.type-product.status-publish a')
+                        self.product_info(cartchki_link, title_category, title_podcat)
 
                 #Если у нас есть подкатегории
                 else:
@@ -237,7 +275,7 @@ class AvitoParser:
                             total_page = self.total_page(navigation)
                             print(total_page)
                             # count = 0
-                            for i in range(int(total_page)):
+                            for i in range(1,int(total_page)+1):
                                 print(i, "Страница")
                                 #Получаем ссылки карточек из подкатегории
                                 cartchki_link = self.soup_function(link_podcat +'page/' + str(i), 'li.product.type-product.status-publish a')
