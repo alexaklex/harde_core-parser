@@ -121,24 +121,27 @@ class AvitoParser:
                          descr = ''
                          print("jopa")
 
-
-                    try:
-                        featured_image = block.select('img.attachment-shop_single')[0].get('src')
-                        print(featured_image)
-                    except:
-                        featured_image = ''
+                    # try:
+                    #     featured_image = block.select('img.attachment-shop_single')[0].get('src')
+                    #     print(featured_image)
+                    # except:
+                    #     featured_image = ''
                     try:
                         gallery = []
                         img_gallery_massiv = block.select('div.woocommerce-product-gallery__image')
 
                         if len(img_gallery_massiv) > 1:
                             for i in img_gallery_massiv:
-                                if img_gallery_massiv[0] == i:
-                                    continue
+                                # if img_gallery_massiv[0] == i:
+                                #     continue
                                 p_gallery = i.get('data-thumb')
                                 gallery.append(p_gallery)
                                 product_gallery = '|'.join(gallery)
                                 print(product_gallery)
+
+                        elif len(img_gallery_massiv) == 1:
+                            product_gallery = block.select('img.attachment-shop_single')[0].get('src')
+
                         else:
                             product_gallery = ''
                     except:
@@ -173,8 +176,7 @@ class AvitoParser:
                         # 'post_content2': descr_main,
                         'lenght': lenght,
                         'width': width,
-                        'featured_image': featured_image,
-                        'product_gallery': product_gallery,
+                        'featured_image': product_gallery,
                     }
                     self.write_csv(data_csv)
             else:
@@ -187,11 +189,11 @@ class AvitoParser:
     #Начало пути
     #Итерация по полученным ссылкам с главной страницы
     def link_iteration(self, container):
-        # for item in container:
-        #     link = self.parse_block(item)
+        for item in container:
+            link = self.parse_block(item)
             # return
-        for i in range(4,5):
-            link = self.parse_block(container[i])
+        # for i in range(4,5):
+        #     link = self.parse_block(container[i])
 
 
     def parse_block(self, item):
@@ -305,7 +307,6 @@ class AvitoParser:
                 data['regular_price'],
                 data['post_status'],
                 data['featured_image'],
-                data['product_gallery']
             ))
 
     # Функция начального создание title
@@ -321,7 +322,6 @@ class AvitoParser:
                     'regular_price': 'regular_price',
                     'post_status': 'post_status',
                     'featured_image': 'featured_image',
-                    'product_gallery': 'product_gallery',
 
                     }
 
@@ -337,8 +337,7 @@ class AvitoParser:
                     data['width'],
                     data['regular_price'],
                     data['post_status'],
-                    data['featured_image'],
-                    data['product_gallery'])
+                    data['featured_image'])
                 )
 
     def get_blocks(self):
